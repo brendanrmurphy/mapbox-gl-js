@@ -329,7 +329,7 @@ class ProgramConfiguration {
     _buffers: Array<VertexBuffer>;
 
     _idMap: FeaturePaintBufferMap;
-    _bufferPos: number;
+    _bufferOffset: number;
 
     constructor() {
         this.binders = {};
@@ -337,7 +337,7 @@ class ProgramConfiguration {
 
         this._buffers = [];
         this._idMap = {};
-        this._bufferPos = 0;
+        this._bufferOffset = 0;
     }
 
     static createDynamic<Layer: TypedStyleLayer>(layer: Layer, zoom: number, filterProperties: (string) => boolean) {
@@ -381,12 +381,12 @@ class ProgramConfiguration {
             this._idMap[featureId] = this._idMap[featureId] || [];
             this._idMap[featureId].push({
                 index: index,
-                start: this._bufferPos,
+                start: this._bufferOffset,
                 length: length
             });
         }
 
-        this._bufferPos = length;
+        this._bufferOffset = length;
     }
 
     updatePaintArrays(featureStates: FeatureStates, vtLayer: VectorTileLayer, layer: TypedStyleLayer): boolean {
@@ -461,6 +461,7 @@ class ProgramConfiguration {
 
 class ProgramConfigurationSet<Layer: TypedStyleLayer> {
     programConfigurations: {[string]: ProgramConfiguration};
+    needsUpload: boolean;
 
     constructor(layoutAttributes: Array<StructArrayMember>, layers: $ReadOnlyArray<Layer>, zoom: number, filterProperties: (string) => boolean = () => true) {
         this.programConfigurations = {};
@@ -468,20 +469,20 @@ class ProgramConfigurationSet<Layer: TypedStyleLayer> {
             this.programConfigurations[layer.id] = ProgramConfiguration.createDynamic(layer, zoom, filterProperties);
             this.programConfigurations[layer.id].layoutAttributes = layoutAttributes;
         }
+        this.needsUpload = false;
     }
 
     populatePaintArrays(length: number, feature: Feature, index: number) {
         for (const key in this.programConfigurations) {
             this.programConfigurations[key].populatePaintArrays(length, feature, index);
         }
+        this.needsUpload = true;
     }
 
-    updatePaintArrays(featureStates: FeatureStates, vtLayer: VectorTileLayer, layers: $ReadOnlyArray<TypedStyleLayer>): boolean {
-        let changed: boolean = false;
+    updatePaintArrays(featureStates: FeatureStates, vtLayer: VectorTileLayer, layers: $ReadOnlyArray<TypedStyleLayer>) {
         for (const layer of layers) {
-            changed =  changed || this.programConfigurations[layer.id].updatePaintArrays(featureStates, vtLayer, layer);
+            this.needsUpload =  this.needsUpload || this.programConfigurations[layer.id].updatePaintArrays(featureStates, vtLayer, layer);
         }
-        return changed;
     }
 
     get(layerId: string) {
@@ -489,9 +490,11 @@ class ProgramConfigurationSet<Layer: TypedStyleLayer> {
     }
 
     upload(context: Context) {
+        if (!this.needsUpload) return;
         for (const layerId in this.programConfigurations) {
             this.programConfigurations[layerId].upload(context);
         }
+        this.needsUpload = false;
     }
 
     destroy() {

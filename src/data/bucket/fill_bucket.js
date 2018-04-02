@@ -46,7 +46,6 @@ class FillBucket implements Bucket {
     segments: SegmentVector;
     segments2: SegmentVector;
     uploaded: boolean;
-    changed: boolean;
 
     constructor(options: BucketParameters<FillStyleLayer>) {
         this.zoom = options.zoom;
@@ -75,7 +74,7 @@ class FillBucket implements Bucket {
 
     update(states: FeatureStates, vtLayer: VectorTileLayer) {
         if (!this.stateDependentLayers.length) return;
-        this.changed = this.programConfigurations.updatePaintArrays(states, vtLayer, this.stateDependentLayers);
+        this.programConfigurations.updatePaintArrays(states, vtLayer, this.stateDependentLayers);
     }
 
     isEmpty() {
@@ -83,7 +82,7 @@ class FillBucket implements Bucket {
     }
 
     uploadPending(): boolean {
-        return !this.uploaded || this.changed;
+        return !this.uploaded || this.programConfigurations.needsUpload;
     }
     upload(context: Context) {
         if (!this.uploaded) {
@@ -93,7 +92,6 @@ class FillBucket implements Bucket {
         }
         this.programConfigurations.upload(context);
         this.uploaded = true;
-        this.changed = false;
     }
 
     destroy() {
