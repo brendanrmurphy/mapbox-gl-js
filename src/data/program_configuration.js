@@ -25,7 +25,7 @@ type FeaturePaintBufferMap = {
     [feature_id: string]: Array<{
         index: number,
         start: number,
-        length: number
+        end: number
     }>
 };
 
@@ -141,21 +141,21 @@ class SourceExpressionBinder<T> implements Binder<T> {
         return [];
     }
 
-    populatePaintArray(length: number, feature: Feature) {
+    populatePaintArray(newLength: number, feature: Feature) {
         const paintArray = this.paintVertexArray;
 
         const start = paintArray.length;
-        paintArray.reserve(length);
+        paintArray.reserve(newLength);
 
         const value = this.expression.evaluate({zoom: 0}, feature);
 
         if (this.type === 'color') {
             const color = packColor(value);
-            for (let i = start; i < length; i++) {
+            for (let i = start; i < newLength; i++) {
                 paintArray.emplaceBack(color[0], color[1]);
             }
         } else {
-            for (let i = start; i < length; i++) {
+            for (let i = start; i < newLength; i++) {
                 paintArray.emplaceBack(value);
             }
 
@@ -163,17 +163,17 @@ class SourceExpressionBinder<T> implements Binder<T> {
         }
     }
 
-    updatePaintArray(start: number, length: number, feature: Feature) {
+    updatePaintArray(start: number, end: number, feature: Feature) {
         const paintArray = this.paintVertexArray;
         const value = this.expression.evaluate({zoom: 0}, feature);
 
         if (this.type === 'color') {
             const color = packColor(value);
-            for (let i = start; i < length; i++) {
+            for (let i = start; i < end; i++) {
                 paintArray.emplace(i, color[0], color[1]);
             }
         } else {
-            for (let i = start; i < length; i++) {
+            for (let i = start; i < end; i++) {
                 paintArray.emplace(i, value);
             }
 
@@ -231,11 +231,11 @@ class CompositeExpressionBinder<T> implements Binder<T> {
         return [];
     }
 
-    populatePaintArray(length: number, feature: Feature) {
+    populatePaintArray(newLength: number, feature: Feature) {
         const paintArray = this.paintVertexArray;
 
         const start = paintArray.length;
-        paintArray.reserve(length);
+        paintArray.reserve(newLength);
 
         const min = this.expression.evaluate({zoom: this.zoom    }, feature);
         const max = this.expression.evaluate({zoom: this.zoom + 1}, feature);
@@ -243,11 +243,11 @@ class CompositeExpressionBinder<T> implements Binder<T> {
         if (this.type === 'color') {
             const minColor = packColor(min);
             const maxColor = packColor(max);
-            for (let i = start; i < length; i++) {
+            for (let i = start; i < newLength; i++) {
                 paintArray.emplaceBack(minColor[0], minColor[1], maxColor[0], maxColor[1]);
             }
         } else {
-            for (let i = start; i < length; i++) {
+            for (let i = start; i < newLength; i++) {
                 paintArray.emplaceBack(min, max);
             }
 
@@ -255,7 +255,7 @@ class CompositeExpressionBinder<T> implements Binder<T> {
         }
     }
 
-    updatePaintArray(start: number, length: number, feature: Feature) {
+    updatePaintArray(start: number, end: number, feature: Feature) {
         const paintArray = this.paintVertexArray;
 
         const min = this.expression.evaluate({zoom: this.zoom    }, feature);
@@ -264,11 +264,11 @@ class CompositeExpressionBinder<T> implements Binder<T> {
         if (this.type === 'color') {
             const minColor = packColor(min);
             const maxColor = packColor(max);
-            for (let i = start; i < length; i++) {
+            for (let i = start; i < end; i++) {
                 paintArray.emplace(i, minColor[0], minColor[1], maxColor[0], maxColor[1]);
             }
         } else {
-            for (let i = start; i < length; i++) {
+            for (let i = start; i < end; i++) {
                 paintArray.emplace(i, min, max);
             }
 
@@ -371,9 +371,9 @@ class ProgramConfiguration {
         return self;
     }
 
-    populatePaintArrays(length: number, feature: Feature, index: number) {
+    populatePaintArrays(newLength: number, feature: Feature, index: number) {
         for (const property in this.binders) {
-            this.binders[property].populatePaintArray(length, feature);
+            this.binders[property].populatePaintArray(newLength, feature);
         }
 
         if (feature.id && index) {
@@ -382,11 +382,11 @@ class ProgramConfiguration {
             this._idMap[featureId].push({
                 index: index,
                 start: this._bufferOffset,
-                length: length
+                end: newLength
             });
         }
 
-        this._bufferOffset = length;
+        this._bufferOffset = newLength;
     }
 
     updatePaintArrays(featureStates: FeatureStates, vtLayer: VectorTileLayer, layer: TypedStyleLayer): boolean {
@@ -406,7 +406,7 @@ class ProgramConfiguration {
                         //AHM: Remove after https://github.com/mapbox/mapbox-gl-js/issues/6255
                         const value = layer.paint.get(property);
                         (binder: any).expression = value.value;
-                        binder.updatePaintArray(pos.start, pos.length, feature);
+                        binder.updatePaintArray(pos.start, pos.end, feature);
                         dirty = true;
                     }
                 }
