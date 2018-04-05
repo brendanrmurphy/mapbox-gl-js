@@ -46,6 +46,7 @@ class CollisionIndex {
     pitchfactor: number;
     screenRightBoundary: number;
     screenBottomBoundary: number;
+    bucketInstanceIds: {[number]: boolean};
 
     constructor(
         transform: Transform,
@@ -60,6 +61,8 @@ class CollisionIndex {
 
         this.screenRightBoundary = transform.width + viewportPadding;
         this.screenBottomBoundary = transform.height + viewportPadding;
+
+        this.bucketInstanceIds = {};
     }
 
     placeCollisionBox(collisionBox: SingleCollisionBox, allowOverlap: boolean, textPixelRatio: number, posMatrix: mat4): { box: Array<number>, offscreen: boolean } {
@@ -247,7 +250,7 @@ class CollisionIndex {
      *
      * @private
      */
-    queryRenderedSymbols(queryGeometry: any, tileCoord: OverscaledTileID, textPixelRatio: number, collisionBoxArray: CollisionBoxArray, sourceID: string, bucketInstanceIds: {[number]: boolean}) {
+    queryRenderedSymbols(queryGeometry: any, tileCoord: OverscaledTileID, textPixelRatio: number, collisionBoxArray: CollisionBoxArray, sourceID: string) {
         const sourceLayerFeatures = {};
         const result = [];
 
@@ -282,7 +285,7 @@ class CollisionIndex {
             // Only include results from the matching source, tile and version of the bucket that was indexed
             if (features[i].sourceID === sourceID &&
                 features[i].tileID === tileID &&
-                bucketInstanceIds[features[i].bucketInstanceId]) {
+                this.bucketInstanceIds[features[i].bucketInstanceId]) {
                 thisTileFeatures.push(features[i].boxIndex);
             }
         }
@@ -290,7 +293,7 @@ class CollisionIndex {
         for (let i = 0; i < ignoredFeatures.length; i++) {
             if (ignoredFeatures[i].sourceID === sourceID &&
                 ignoredFeatures[i].tileID === tileID &&
-                bucketInstanceIds[ignoredFeatures[i].bucketInstanceId]) {
+                this.bucketInstanceIds[ignoredFeatures[i].bucketInstanceId]) {
                 thisTileFeatures.push(ignoredFeatures[i].boxIndex);
             }
         }
