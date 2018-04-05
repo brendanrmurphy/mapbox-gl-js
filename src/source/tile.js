@@ -1,6 +1,6 @@
 // @flow
 
-import { uniqueId, deepEqual, parseCacheControl } from '../util/util';
+import { uniqueId, deepEqual, parseCacheControl, values } from '../util/util';
 import { deserialize as deserializeBucket } from '../data/bucket';
 import FeatureIndex from '../data/feature_index';
 import vt from '@mapbox/vector-tile';
@@ -57,7 +57,7 @@ class Tile {
     buckets: {[string]: Bucket};
     latestFeatureIndex: ?FeatureIndex;
     latestRawTileData: ?ArrayBuffer;
-    retainedFeatureIndexes: {[number]: FeatureIndex};
+    retainedFeatureIndexes: {[string]: FeatureIndex};
     iconAtlasImage: ?RGBAImage;
     iconAtlasTexture: Texture;
     glyphAtlasImage: ?AlphaImage;
@@ -269,11 +269,10 @@ class Tile {
 
         // Build up set of unique featureIndexes used by different buckets
         const symbolFeatureIndexes =
-            Object.values(this.retainedFeatureIndexes).filter(
+            values(this.retainedFeatureIndexes).filter(
                 (featureIndex, arrayIndex, array) => array.indexOf(featureIndex) === arrayIndex);
 
-        for (const unique of symbolFeatureIndexes) {
-            const featureIndex = (unique: any);
+        for (const featureIndex of symbolFeatureIndexes) {
             if (!featureIndex.rawTileData) {
                 continue;
             }
@@ -457,7 +456,7 @@ class Tile {
                 // This bucket was no longer used in the latest placement,
                 // so discard the associated querying data if this was the
                 // last bucket to use it.
-                delete this.retainedFeatureIndexes[bucketInstanceId];
+                delete this.retainedFeatureIndexes[bucketInstanceId.toString()];
             }
         }
     }
